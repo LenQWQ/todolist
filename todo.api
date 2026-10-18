@@ -1,0 +1,124 @@
+syntax = "v1"
+
+type Todo {
+	Id        int    `json:"id"`
+	Titles    string `json:"titles"`
+	Done      bool   `json:"done"`
+	Content   string `json:"content"`
+	CreatedAt int64  `json:"created_at"`
+	UpdatedAt int64  `json:"updated_at"`
+}
+
+type User {
+	Id           int    `json:"id"`
+	Username     string `json:"username"`
+	PasswordHash string `json:"-"`
+	Email        string `json:"email"`
+	CreatedAt    int64  `json:"created_at"`
+	UpdatedAt    int64  `json:"updated_at"`
+}
+
+type Token {
+	Id        int    `json:"id"`
+	Token     string `json:"token"`
+	UserId    int    `json:"user_id"`
+	ExpiresAt int64  `json:"expires_at"`
+	CreatedAt int64  `json:"created_at"`
+}
+
+type UserInfo {
+	Id        int    `json:"id"`
+	Username  string `json:"username"`
+	Email     string `json:"email"`
+	CreatedAt int64  `json:"created_at"`
+	UpdatedAt int64  `json:"updated_at"`
+}
+
+type UserRegisterReq {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Email    string `json:"email"`
+}
+
+type UserLoginReq {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type UserLoginResp {
+	Id        int    `json:"id"`
+	Username  string `json:"username"`
+	Email     string `json:"email"`
+	CreatedAt int64  `json:"created_at"`
+	UpdatedAt int64  `json:"updated_at"`
+	Token     string `json:"-"`
+}
+
+type UserUpdateReq {
+	Email string `json:"email"`
+}
+
+type UserChangePasswordReq {
+	OldPassword string `json:"old_password"`
+	NewPassword string `json:"new_password"`
+}
+
+type TodoListResp {
+	Todos []Todo `json:"todos"`
+}
+
+type CreateTodoReq {
+	Titles  string `json:"titles"`
+	Content string `json:"content"`
+}
+
+type GetTodoReq {
+	Id int `path:"id"`
+}
+
+type UpdateTodoReq {
+	Id      int    `path:"id"`
+	Titles  string `json:"titles"`
+	Content string `json:"content"`
+	Done    bool   `json:"done"`
+}
+
+type DeleteTodoReq {
+	Id int `path:"id"`
+}
+
+service todo-api {
+	@handler UserRegister
+	post /user/register (UserRegisterReq) returns (UserInfo)
+
+	@handler UserLogin
+	post /user/login (UserLoginReq) returns (UserLoginResp)
+
+	@handler UserLogOut
+	post /user/logout
+
+	@handler GetUserInfo
+	get /user/me returns (UserInfo)
+
+	@handler UserUpdate
+	put /user/me (UserUpdateReq) returns (UserInfo)
+
+	@handler UserChangePassword
+	put /user/me/password (UserChangePasswordReq)
+
+	@handler CreateTodo
+	post /todos (CreateTodoReq) returns (Todo)
+
+	@handler GetTodoInfo
+	get /todos/:id (GetTodoReq) returns (Todo)
+
+	@handler GetTodoList
+	get /todos returns (TodoListResp)
+
+	@handler UpdateTodo
+	put /todos/:id (UpdateTodoReq) returns (Todo)
+
+	@handler DeleteTodo
+	delete /todos/:id (DeleteTodoReq)
+}
+

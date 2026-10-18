@@ -1,0 +1,10 @@
+# 不要进构建上下文的东西
+.git
+.gocache
+.gopath
+*.md
+
+# ⚠️ 绝对不能进镜像：本地真实配置（含数据库密码）
+etc/todo-api.yaml
+
+# 注意：build/ 不能排除！Dockerfile 要 COPY build/app-linux 进镜像

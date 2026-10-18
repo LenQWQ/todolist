@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TodoList</title>
+<style>
+  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; max-width: 760px; margin: 24px auto; padding: 0 16px; color: #222; }
+  h1 { margin-bottom: 8px; }
+  section { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  h2, h3 { margin-top: 0; }
+  input { padding: 6px 8px; margin: 4px 6px 4px 0; border: 1px solid #ccc; border-radius: 4px; }
+  button { padding: 6px 14px; margin: 4px 6px 4px 0; border: 1px solid #0d6efd; background: #0d6efd; color: #fff; border-radius: 4px; cursor: pointer; }
+  button:hover { background: #0b5ed7; }
+  button.danger { border-color: #dc3545; background: #dc3545; }
+  #msg { min-height: 24px; font-weight: 600; margin-bottom: 12px; }
+  #msg.ok { color: #157347; }
+  #msg.err { color: #b02a37; }
+  #profile { font-weight: 600; margin-bottom: 12px; }
+  ul { list-style: none; padding-left: 0; }
+  li { padding: 8px 0; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 10px; }
+  li .title { font-weight: 600; }
+  li .content { color: #666; }
+  li .done { text-decoration: line-through; color: #999; }
+  hr { border: none; border-top: 1px solid #eee; margin: 16px 0; }
+</style>
+</head>
+<body>
+
+<h1>TodoList</h1>
+<div id="msg"></div>
+
+<!-- ============ 未登录：注册 / 登录 ============ -->
+<section id="auth-section">
+  <h2>注册</h2>
+  <input id="reg-username" placeholder="用户名">
+  <input id="reg-email" placeholder="邮箱">
+  <input id="reg-password" type="password" placeholder="密码">
+  <button onclick="register()">注册</button>
+
+  <hr>
+
+  <h2>登录</h2>
+  <input id="login-username" placeholder="用户名">
+  <input id="login-password" type="password" placeholder="密码">
+  <button onclick="login()">登录</button>
+</section>
+
+<!-- ============ 已登录：个人信息 ============ -->
+<section id="main-section" style="display:none">
+  <div id="profile"></div>
+
+  <h3>修改邮箱</h3>
+  <input id="new-email" placeholder="新邮箱">
+  <button onclick="updateEmail()">保存</button>
+
+  <h3>修改密码</h3>
+  <input id="old-password" type="password" placeholder="原密码">
+  <input id="new-password" type="password" placeholder="新密码">
+  <button onclick="changePassword()">修改密码</button>
+
+  <hr>
+  <button onclick="logout()">退出登录</button>
+</section>
+
+<!-- ============ 已登录：待办 ============ -->
+<section id="todo-section" style="display:none">
+  <h2>我的待办</h2>
+  <input id="todo-title" placeholder="标题">
+  <input id="todo-content" placeholder="内容">
+  <button onclick="createTodo()">新建</button>
+  <ul id="todo-list"></ul>
+</section>
+
+<script>
+/* =========================================================
+ * 工具函数（我写好的，直接复用）
+ * =======================================================*/
+
+// 统一提示区：isOk=true 绿色，false 红色
+function showMsg(text, isOk) {
+  const el = document.getElementById('msg');
+  el.textContent = text || '';
+  el.className = isOk ? 'ok' : 'err';
+}
+
+// 统一请求封装。返回 { ok, status, data }
+//   - 同源 fetch 会自动带上 Cookie（HttpOnly 的 token 也带），所以不用手写 Authorization
+//   - 后端错误响应体是【JSON 字符串】，比如 "用户名或密码错误"，JSON.parse 后就是那个字符串
+async function api(path, options = {}) {
+  const res = await fetch(path, options);
+  const text = await res.text();
+  let data = null;
+  if (text) {
+    try { data = JSON.parse(text); } catch (e) { data = text; }
+  }
+  return { ok: res.ok, status: res.status, data };
+}
+
+// 构造 JSON 请求参数
+function jsonOptions(method, body) {
+  return {
+    method: method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  };
+}
+
+/* =========================================================
+ * 认证：注册 / 登录 / 退出
+ * =======================================================*/
+
+async function register() {
+  const body = {
+    username: document.getElementById('reg-username').value,
+    email: document.getElementById('reg-email').value,
+    password: document.getElementById('reg-password').value,
+  };
+  const r = await api('/user/register', jsonOptions('POST', body));
+  if (!r.ok) { showMsg(r.data, false); return; }
+  showMsg('注册成功，请登录', true);
+}
+
+async function login() {
+  const body = {
+    username: document.getElementById('login-username').value,
+    password: document.getElementById('login-password').value,
+  };
+  const r = await api('/user/login', jsonOptions('POST', body));
+  if (!r.ok) { showMsg(r.data, false); return; }
+  showMsg('登录成功', true);
+  await loadProfile();
+}
+
+async function logout() {
+  const r = await api('/user/logout', { method: 'POST' });
+  if (!r.ok) { showMsg(r.data, false); return; }
+  showMsg('已退出登录', true);
+  await loadProfile();
+}
+
+/* =========================================================
+ * 个人信息：查看 / 改邮箱 / 改密码
+ * =======================================================*/
+
+async function updateEmail() {
+  const body = { email: document.getElementById('new-email').value };
+  const r = await api('/user/me', jsonOptions('PUT', body));
+  if (!r.ok) { showMsg(r.data, false); return; }
+  showMsg('邮箱已更新', true);
+  await loadProfile();
+}
+
+async function changePassword() {
+  const body = {
+    old_password: document.getElementById('old-password').value,
+    new_password: document.getElementById('new-password').value,
+  };
+  const r = await api('/user/me/password', jsonOptions('PUT', body));
+  if (!r.ok) { showMsg(r.data, false); return; }
+  showMsg('密码已修改', true);
+  document.getElementById('old-password').value = '';
+  document.getElementById('new-password').value = '';
+}
+
+/* =========================================================
+ * 登录态：页面加载 / 登录后都要调一次
+ * =======================================================*/
+
+async function loadProfile() {
+  const authSection = document.getElementById('auth-section');
+  const mainSection = document.getElementById('main-section');
+  const todoSection = document.getElementById('todo-section');
+
+  const r = await api('/user/me');
+
+  if (r.status === 401) {         // 未登录（中间件拦下）
+    authSection.style.display = 'block';
+    mainSection.style.display = 'none';
+    todoSection.style.display = 'none';
+    document.getElementById('profile').textContent = '';
+    document.getElementById('todo-list').innerHTML = '';
+    return;
+  }
+  if (!r.ok) {                    // 其他错误（500 等）
+    showMsg(r.data, false);
+    return;
+  }
+
+  const u = r.data;               // 已登录
+  authSection.style.display = 'none';
+  mainSection.style.display = 'block';
+  todoSection.style.display = 'block';
+  document.getElementById('profile').textContent =
+    '当前用户：' + u.username + '（' + u.email + '）';
+  await loadTodos();
+}
+
+let todosCache = [];   // 供 toggleDone 取完整数据
+
+async function loadTodos() {
+  const r = await api('/todos');
+  if (!r.ok) { showMsg(r.data, false); return; }
+
+  todosCache = r.data.todos || [];               // 缓存，供 toggleDone 使用
+
+  const ul = document.getElementById('todo-list');
+  ul.innerHTML = '';                             // 清空旧列表
+
+  for (const todo of todosCache) {
+    const li = document.createElement('li');
+
+    const cb = document.createElement('input');  // 完成复选框
+    cb.type = 'checkbox';
+    cb.checked = todo.done;
+    cb.onchange = function () { toggleDone(todo.id, cb.checked); };
+
+    const title = document.createElement('span');// 标题（已完成加删除线）
+    title.className = 'title' + (todo.done ? ' done' : '');
+    title.textContent = todo.titles;             // ⚠️ textContent 而非 innerHTML（防 XSS）
+
+    const content = document.createElement('span');
+    content.className = 'content';
+    content.textContent = todo.content || '';
+
+    const del = document.createElement('button');
+    del.className = 'danger';
+    del.textContent = '删除';
+    del.onclick = function () { deleteTodo(todo.id); };
+
+    li.append(cb, title, content, del);
+    ul.appendChild(li);
+  }
+}
+
+async function createTodo() {
+  const titles = document.getElementById('todo-title').value;
+  const content = document.getElementById('todo-content').value;
+
+  if (!titles) { showMsg('标题不能为空', false); return; }   // 本地先挡一道，省一次请求
+
+  const r = await api('/todos', jsonOptions('POST', { titles: titles, content: content }));
+  if (!r.ok) { showMsg(r.data, false); return; }
+
+  document.getElementById('todo-title').value = '';
+  document.getElementById('todo-content').value = '';
+  showMsg('已创建', true);
+  await loadTodos();
+}
+
+async function toggleDone(id, done) {
+  // PUT 是整体更新：必须从缓存取这条的完整数据，把 titles/content 一起传回去
+  const t = todosCache.find(function (x) { return x.id === id; });
+  if (!t) { return; }
+
+  const r = await api('/todos/' + id, jsonOptions('PUT', {
+    titles: t.titles,
+    content: t.content,
+    done: done,
+  }));
+
+  if (!r.ok) {
+    showMsg(r.data, false);
+    await loadTodos();                 // 失败 → 刷新，让复选框回到服务端真实状态
+    return;
+  }
+  showMsg(done ? '已标记完成' : '已取消完成', true);
+  await loadTodos();
+}
+
+async function deleteTodo(id) {
+  const r = await api('/todos/' + id, { method: 'DELETE' });
+  if (!r.ok) { showMsg(r.data, false); return; }
+  showMsg('已删除', true);
+  await loadTodos();
+}
+
+// 打开页面先探一次登录态
+window.onload = loadProfile;
+</script>
+
+</body>
+</html>

@@ -1,0 +1,8 @@
+Name: todo-api
+Host: 0.0.0.0
+Port: 8888
+Mysql:
+  DataSource: "${MYSQL_DSN}"
+Token:
+  ExpireSeconds: 86400
+  CookieSecure: false
