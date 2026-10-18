@@ -65,7 +65,7 @@
 
 ## 快速开始
 
-### 方式一：Docker Compose（推荐）
+### 方式一：Docker Compose
 
 前置：安装 Docker Desktop。
 
