@@ -32,7 +32,7 @@ func (M *MysqlTodoRepository) Create(userId int, todo *types.Todo) error {
 
 func (M *MysqlTodoRepository) FindById(userId int, id int) (*types.Todo, error) {
 	var todo Todo
-	err := M.db.Where("user_id = ?", userId).First(&id).Error
+	err := M.db.Where("user_id = ?", userId).First(todo, &id).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, errs.ErrorTodoNotFound
 	}
