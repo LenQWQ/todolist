@@ -34,7 +34,7 @@ func (l *GetTodoInfoLogic) GetTodoInfo(req *types.GetTodoReq) (resp *types.Todo,
 		return nil, errs.ErrorInvalidToken
 	}
 	id := req.Id
-	temp, err := l.svcCtx.TodoRepo.FindById(info.UserID, id)
+	temp, err := l.svcCtx.TodoRepo.FindById(id, info.UserID)
 	if err != nil {
 		return nil, errs.ErrorTodoNotFound
 	}

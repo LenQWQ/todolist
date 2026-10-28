@@ -34,10 +34,10 @@ func (l *DeleteTodoLogic) DeleteTodo(req *types.DeleteTodoReq) error {
 		return errs.ErrorInvalidToken
 	}
 	id := req.Id
-	err := l.svcCtx.TodoRepo.Delete(info.UserID, id)
+	err := l.svcCtx.TodoRepo.Delete(id, info.UserID)
 	if err != nil {
-		return errs.ErrorTodoNotFound
-	} else {
-		return nil
+		// 透传：仓库已区分「不存在（404）」与「数据库故障（500）」
+		return err
 	}
+	return nil
 }

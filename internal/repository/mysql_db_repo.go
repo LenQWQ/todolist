@@ -30,9 +30,9 @@ func (M *MysqlTodoRepository) Create(userId int, todo *types.Todo) error {
 	return nil
 }
 
-func (M *MysqlTodoRepository) FindById(userId int, id int) (*types.Todo, error) {
+func (M *MysqlTodoRepository) FindById(id int, userId int) (*types.Todo, error) {
 	var todo Todo
-	err := M.db.Where("user_id = ?", userId).First(todo, &id).Error
+	err := M.db.Where("user_id = ? AND id = ?", userId, id).First(&todo).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, errs.ErrorTodoNotFound
 	}
@@ -78,20 +78,14 @@ func (M *MysqlTodoRepository) Update(userId int, todo *types.Todo) error {
 	return nil
 }
 
-func (M *MysqlTodoRepository) Delete(userId int, id int) error {
-	var todo Todo
-	err := M.db.Where("user_id = ?", userId).First(&todo, id).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
+func (M *MysqlTodoRepository) Delete(id int, userId int) error {
+	res := M.db.Where("user_id = ? AND id = ?", userId, id).Delete(&Todo{})
+	if res.Error != nil {
+		logx.Error(res.Error)
+		return errs.ErrorService
+	}
+	if res.RowsAffected == 0 {
 		return errs.ErrorTodoNotFound
-	}
-	if err != nil {
-		logx.Error(err)
-		return errs.ErrorService
-	}
-	err2 := M.db.Delete(&Todo{}, id).Error
-	if err2 != nil {
-		logx.Error(err2)
-		return errs.ErrorService
 	}
 	return nil
 }
