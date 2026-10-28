@@ -172,6 +172,24 @@ go test ./internal/handler/ -v
 
 测试使用内存假仓库（`fakeTodoRepo` / `fakeUserRepo` / `fakeTokenRepo`），假仓库**同样实现 `user_id` 过滤**，避免"假实现比真实现宽松"导致测试失真。
 
+### 集成测试（连真实 MySQL）
+
+单元测试使用假仓库，**不会执行真实 SQL**——`First(&id)` 这类写错的查询、缺失的 `WHERE` 条件、`RowsAffected` 语义错误，单测全绿也发现不了。因此另有一组连接真实 MySQL 的集成测试，覆盖仓库层的完整往返。
+
+```powershell
+# 1. 建一个独立的测试库（不要用开发库，测试会清表）
+mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS todo_test CHARACTER SET utf8mb4;"
+
+# 2. 设置 DSN 并运行
+$env:TEST_MYSQL_DSN="root:你的密码@tcp(127.0.0.1:3306)/todo_test?charset=utf8mb4&parseTime=True"
+go test ./internal/repository/ -run Integration -v
+```
+
+- 未设置 `TEST_MYSQL_DSN` 时自动 **skip**（CI 无数据库也能跑其余测试）
+- 覆盖：`Create → FindById → FindAll → Update → Delete` 往返、按 id 精确查询、他用户数据不可见/不可改/不可删、重复删除返回"不存在"
+
+> 实测有效的证据：把 `FindById` 里的 `First(&todo)` 改回 `First(&id)` 后，**37 个单元测试仍然全过**，而集成测试立即失败并指出具体原因。
+
 ## 验证记录
 
 见 [docs/验证记录.md](docs/验证记录.md)：包含浏览器操作记录、Docker 构建/启动记录、数据持久化三连测。
